@@ -13,16 +13,17 @@ import (
 )
 
 var (
-	version       string
-	goversion     = runtime.Version()
-	goos          = runtime.GOOS
-	goarch        = runtime.GOARCH
-	showTags      bool
-	showUnchanged bool
-	compact       bool
-	useMarkdown   bool
-	useJson       bool
-	metrics       bool
+	version           string
+	goversion         = runtime.Version()
+	goos              = runtime.GOOS
+	goarch            = runtime.GOARCH
+	showTags          bool
+	showUnchanged     bool
+	compact           bool
+	useMarkdown       bool
+	useJson           bool
+	metrics           bool
+	prometheusMetrics bool
 )
 
 func init() {
@@ -32,6 +33,7 @@ func init() {
 	summarizeCmd.Flags().BoolVarP(&useMarkdown, "markdown", "m", false, "Use markdown formatting")
 	summarizeCmd.Flags().BoolVarP(&useJson, "json", "j", false, "Use JSON output")
 	summarizeCmd.Flags().BoolVarP(&metrics, "metrics", "s", false, "Output metrics")
+	summarizeCmd.Flags().BoolVarP(&prometheusMetrics, "prometheus-metrics", "p", false, "Output prometheus metrics")
 }
 
 // summarizeCmd will parse the tf plan output json to scrape created|updated|deleted resources in a clear outout
@@ -50,12 +52,17 @@ var summarizeCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		if prometheusMetrics && (useJson || useMarkdown || metrics) {
+			fmt.Println("Prometheus Metric output can not be used with any other output setting")
+			os.Exit(1)
+		}
+
 		output, err := reader.Reader(os.Stdin)
 		if err != nil {
 			panic(err)
 		}
 
-		parser.Parser(output, showTags, showUnchanged, compact, useMarkdown, useJson, metrics)
+		parser.Parser(output, showTags, showUnchanged, compact, useMarkdown, useJson, metrics, prometheusMetrics)
 	},
 }
 

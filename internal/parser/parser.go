@@ -20,7 +20,7 @@ var (
 	resourcesList = make(map[string][]string)
 )
 
-func Parser(output []byte, showTags, showUnchanged, compact, useMarkdown bool, useJson bool, metrics bool) {
+func Parser(output []byte, showTags, showUnchanged, compact, useMarkdown bool, useJson bool, metrics bool, prometheusMetrics bool) {
 	var data tfjson.Plan
 	if err := json.Unmarshal(output, &data); err != nil {
 		fmt.Printf("Error unmarshalling plan: %v\n", err)
@@ -31,7 +31,11 @@ func Parser(output []byte, showTags, showUnchanged, compact, useMarkdown bool, u
 		processResourceChange(resourceChange, showTags)
 	}
 
-	PrintPlanSummary(showTags, showUnchanged, compact, useMarkdown, useJson, metrics)
+	if prometheusMetrics {
+		PrintPlanSummaryPrometheusMetrics(showTags, showUnchanged)
+	} else {
+		PrintPlanSummary(showTags, showUnchanged, compact, useMarkdown, useJson, metrics)
+	}
 }
 
 func processResourceChange(resourceChange *tfjson.ResourceChange, showTags bool) {
@@ -154,6 +158,22 @@ func PrintPlanSummary(showTags, showUnchanged, compact, useMarkdown bool, useJso
 	} else {
 		PrintResourcesJson(showTags, showUnchanged, metrics)
 	}
+}
+
+func PrintPlanSummaryPrometheusMetrics(showTags bool, showUnchanged bool) {
+	if showUnchanged {
+		PrintResourcesPrometheusMetric("terraform_unchanged_total", resourcesList[NOOP])
+	}
+	if showTags {
+		PrintResourcesPrometheusMetric("terraform_pending_tag_total", resourcesList[TAG])
+	}
+	PrintResourcesPrometheusMetric("terraform_pending_create_total", resourcesList[CREATE])
+	PrintResourcesPrometheusMetric("terraform_pending_update_total", resourcesList[UPDATE])
+	PrintResourcesPrometheusMetric("terraform_pending_delete_total", resourcesList[DELETE])
+}
+
+func PrintResourcesPrometheusMetric(metricName string, resources []string) {
+	fmt.Printf("%s %d\n", metricName, len(resources))
 }
 
 func PrintResourcesJson(showTags bool, showUnchanged bool, metrics bool) {
